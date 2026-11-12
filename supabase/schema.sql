@@ -159,16 +159,27 @@ language plpgsql security definer
 set search_path = public
 as $$
 declare
-  requested_role text := new.raw_user_meta_data ->> 'role';
+  requested_role text := lower(coalesce(nullif(btrim(new.raw_user_meta_data ->> 'role'), ''), 'student'));
+  requested_username text := lower(coalesce(nullif(btrim(new.raw_user_meta_data ->> 'username'), ''), split_part(new.email, '@', 1)));
+  requested_full_name text := coalesce(nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''), split_part(new.email, '@', 1));
+  generated_username text := requested_username;
+  username_suffix integer := 1;
 begin
+  while exists (select 1 from public.profiles where lower(username) = lower(generated_username)) loop
+    generated_username := requested_username || username_suffix;
+    username_suffix := username_suffix + 1;
+  end loop;
+
   insert into public.profiles (id, username, full_name, role, auth_email)
   values (
     new.id,
-    new.raw_user_meta_data ->> 'username',
-    coalesce(nullif(btrim(new.raw_user_meta_data ->> 'full_name'), ''), 'New user'),
-    case when requested_role in ('Teacher', 'Other') then requested_role else 'Student' end,
+    generated_username,
+    requested_full_name,
+    case when requested_role in ('teacher', 'other') then initcap(requested_role) else 'Student' end,
     new.email
-  );
+  )
+  on conflict (id) do nothing;
+
   return new;
 end;
 $$;
