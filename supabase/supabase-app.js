@@ -384,6 +384,13 @@
     }
     app.innerHTML = me ? shell() : auth();
   };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", function () {
+      window.render();
+    }, { once: true });
+  } else {
+    window.render();
+  }
   window.auth = function () {
     if (!agreed) return terms();
     const registering = authMode === "register";
