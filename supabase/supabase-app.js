@@ -6,6 +6,7 @@
   let baseline = null;
   let writeQueue = Promise.resolve();
   let authListener;
+  let realtimeChannel = null;
 
   if (!config || !clientFactory) {
     ready = true;
@@ -350,6 +351,45 @@
     baseline = copy(target);
   }
 
+  async function refreshRemoteState() {
+    try {
+      const { data: sessionData, error: sessionError } = await client.auth.getSession();
+      fail(sessionError);
+      if (!sessionData?.session?.user) return;
+      await loadCatalog();
+      await loadWorkspace(sessionData.session.user);
+      if (ready) render();
+    } catch (error) {
+      console.error("Realtime refresh failed", error);
+    }
+  }
+
+  function startRealtimeSync() {
+    if (!client || !client.channel || !me) return;
+    if (realtimeChannel) {
+      client.removeChannel(realtimeChannel);
+      realtimeChannel = null;
+    }
+    const tables = [
+      "profiles",
+      "rooms",
+      "equipment",
+      "time_slots",
+      "bookings",
+      "booking_equipment",
+      "teacher_schedules",
+      "damage_reports",
+      "activity_logs"
+    ];
+    realtimeChannel = client.channel("public-db-live");
+    tables.forEach(table => {
+      realtimeChannel.on("postgres_changes", { event: "*", schema: "public", table }, async () => {
+        await refreshRemoteState();
+      });
+    });
+    realtimeChannel.subscribe();
+  }
+
   window.save = function () {
     if (!ready || !me || !baseline) return Promise.resolve(false);
     const target = stateCopy();
@@ -451,6 +491,7 @@
     page = me.role === "Admin" ? "admin" : "home";
     logA("Logged in");
     render();
+    startRealtimeSync();
     await window.save();
     const unread = DB.messages.filter(message => message.to === me.username && !message.read).length;
     toast(unread ? `You have ${unread} new message${unread > 1 ? "s" : ""} from the admin` : `Welcome, ${me.name}!`);
@@ -655,6 +696,10 @@
     }
     const listener = client.auth.onAuthStateChange(event => {
       if (event === "SIGNED_OUT") {
+        if (realtimeChannel) {
+          client.removeChannel(realtimeChannel);
+          realtimeChannel = null;
+        }
         me = null;
         DB = seed();
         DB.users = [];
