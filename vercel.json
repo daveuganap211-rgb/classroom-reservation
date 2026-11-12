@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/City_College_of_Davao_Classroom_Reservation.html"
+    }
+  ]
+}
