@@ -421,7 +421,8 @@ function initBot(){$("#botbtn").innerHTML=`<img src="${IMG.dava}" alt="DAVA">`;$
 function botGo(x){if(!me){botAdd("Please log in first.","b");return}if(x[2])bf={room:x[2],date:x[3]||today(),slot:"",eq:[],purpose:""};$("#botbox").classList.remove("on");go(x[1])}
 function botToggle(){const b=$("#botbox");b.classList.toggle("on");if(b.classList.contains("on")&&!$("#msgs").children.length){$("#msgs").insertAdjacentHTML("beforeend",`<img class="bpost" src="${IMG.dava}" alt="Hi! I am DAVA">`);botAdd("Hi! I am DAVA, the Davao Academic Virtual Assistant. I can check room availability, guide your booking, explain admin messages and open pages for you.","b");$("#qr").innerHTML=["How do I book?","Free rooms today","Is B1C1 free tomorrow?","Privacy and security"].map(q=>`<button onclick="ask('${q}')">${q}</button>`).join("")}}
 function ask(q){const i=$("#cq");q=q||i.value.trim();if(!q)return;i.value="";botAdd(q,"u");const r=reply(q.toLowerCase());setTimeout(()=>botAdd(r[0],"b",r[1]),350)}
-initBot();render();
+initBot();
+if (!window.SUPABASE_CONFIG) render();
 </script>
 <script src="./supabase/supabase-app.js"></script>
 </body></html>
